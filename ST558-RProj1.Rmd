@@ -10,26 +10,80 @@ output: html_document
 library(knitr)
 library(tidyverse)
 library(parallel)
-library(jsonlite)
 library(rmarkdown)
+library(bigrquery)
+library(DBI)
+library(RSQLite)
+library(httr)
+library(jsonlite)
+library(RCurl)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r}
+cbind(data$franchiseId, data$franchiseName)
+# Write URL to access the API
+getRecords <- function(endpoint, id = NULL, team = NULL){
+  base <- "https://records.nhl.com/site/api"
+  table <- endpoint
+  if (!is.null(team) & is.null(id)) {
+    full_url <- full_url <- paste0(base, "/", table)
+    data <- fromJSON(full_url, flatten = TRUE)$data %>% filter(franchiseName == team)
+  } else if(!is.null(id) & is.null(team)) {
+      full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", id)
+      data <-fromJSON(full_url, flatten = TRUE)$data
+  } else if(is.null(id) & is.null(team)) {
+      full_url <- paste0(base, "/", table)
+      data <-fromJSON(full_url, flatten = TRUE)$data
+    }
+  return(data)
+}
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+getStats <- function(modifier=NULL){
+  base <- "https://statsapi.web.nhl.com/api/v1/teams"
+  if(!is.null(modifier)){
+    full_url <- paste0(base, modifier)
+    data <- fromJSON(full_url, flatten = TRUE)$teams
+  } else {
+    data <- fromJSON(base, flatten = TRUE)$teams
+  }
+  return(data)
+}
 
-```{r cars}
-summary(cars)
+
+### TEST STUFF
+
+full_url <- "https://statsapi.web.nhl.com/api/v1/teams?expand=person.names"
+full_url <- "https://statsapi.web.nhl.com/api/v1/teams?expand=team.stats"
+d <- fromJSON(full_url, flatten = TRUE)$teams
+
+
+d <- getStats(modifier = "?expand=team.stats")
+
+base <- "https://statsapi.web.nhl.com/api/v1/teams"
+d <- fromJSON(full_url, flatten = TRUE)
+  
+base <- "https://records.nhl.com/site/api"
+table <- "franchise"
+attr <- "pikachu/"
+full_url <- paste0(base, "/", table)
+data <-fromJSON(full_url, flatten = TRUE)$data
+
+table <-"franchise-team-totals"
+full_url <- paste0(base, "/", table)
+data <-fromJSON(full_url, flatten = TRUE)$data
+
+table <- "franchise-season-records"
+full_url <- paste0(base, "/", table)
+data <-fromJSON(full_url, flatten = TRUE)$data %>% filter(franchiseName=="Vegas Golden Knights")
+
+table <- "franchise-goalie-records"
+full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", id)
+data <- fromJSON(full_url, flatten = TRUE)$data
+
+table <- "franchise-season-records"
+full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", id)
+data <-fromJSON(full_url, flatten = TRUE)$data
+
+}
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
