@@ -9,14 +9,11 @@ output: rmarkdown::github_document
 # Load necessary packages
 library(knitr)
 library(tidyverse)
-library(parallel)
 library(rmarkdown)
-library(bigrquery)
-library(DBI)
 library(RSQLite)
 library(httr)
 library(jsonlite)
-library(RCurl)
+library(gridExtra)
 ```
 
 
@@ -97,31 +94,80 @@ dfd <- inner_join(VGKrost, df.ppl, by = "person.id")
 df <- inner_join(dfd, df.stats)
 
 # Get rid of redundant rows
-df <- df %>% select(-ends_with("link"), -starts_with("primary"), -ends_with("TimeOnIce"))
+df <- df %>% select(-ends_with("link"), -starts_with("primary"), -ends_with("TimeOnIce"), 
+                    -position.code, -person.fullName, -firstName, -lastName, -active,
+                    -starts_with("birth"), -rosterStatus, -currentTeam.name, 
+                    -currentTeam.id, -season, -ends_with("TimeOnIcePerGame"))
 
 # Add new variables
 df <- df %>% mutate(goalsPerGame = stat.goals/stat.games, 
                     assistsPerGame = stat.assists/stat.games,
                     shotsPerGame = stat.shots/stat.games,
-                    hitsPerGame = stat.hits/stat.games)
+                    hitsPerGame = stat.hits/stat.games) 
+
 ```
 
 ```{r contTbl}
 # Create contingency tables
-table(df$position.name) %>% kable(caption= "Number of players in each field position", 
+table(df$position.name) %>% kable(caption = "Number of players in each field position", 
                                   col.names = c("Position", "Frequency"))
-table(df$)
-
-
-
-
-
-
-
-
-
-
+table(df$nationality) %>% kable(caption = "Number of Players by Nationality",
+                                col.names = c("Nationality", "Frequency"))
+table(df$position.name, df$shootsCatches) %>% kable(caption = "Player Position by Dominant Hand",
+                                                    col.names = c("Left-Handed", "Right-Handed"))
 ```
+
+```{r quantsums, message=FALSE, warning=FALSE}
+means1 <- df %>% group_by(position.name) %>% summarize(avgGoals = mean(stat.goals), 
+                                                      avgAssists = mean(stat.assists),
+                                                      avgShots = mean(stat.shots),
+                                                      avgHits = mean(stat.hits))
+means1 %>% kable(caption = "Average Season Stats by Position",
+                col.names = c("Position", "Goals", "Assists", "Shots", "Hits"))
+
+means2 <- df %>% filter(nationality %in% c("CAN", "CHE", "USA", "SWE")) %>%
+                 group_by(nationality) %>%
+                 summarise(avgGoals = mean(stat.goals), 
+                           avgAssists = mean(stat.assists),
+                           avgShots = mean(stat.shots),
+                           avgHits = mean(stat.hits))
+means2 %>% kable(caption = "Average Stats for Selected Players Nationalities",
+                 col.names = c("Nationality", "Goals", "Assists", "Shots", "Hits"))
+
+means3 <- df %>% group_by(shootsCatches) %>% summarise(avgGoals = round(mean(stat.goals), 3), 
+                                                       sdAssists = round(sd(stat.goals), 3))
+means3 %>% kable(caption = "Average Goals (and SE) by Players Handedness",
+                 col.names = c("Dominant Hand", "Mean", "Std. Dev."))
+```
+
+```{r plotz}
+# Create the required plots
+plot1 <- ggplot(data = df, aes(x = position.name, fill = shootsCatches)) + geom_bar(position = "dodge") +
+           labs(x = "Position Name", y = "Count", title = "Field Positions by Dominant Hand") + 
+           scale_fill_manual(values = c("#a8ddb5", "#43a2ca"), name = "Dominant Hand") + 
+           theme(axis.text.x = element_text(angle = 45, hjust=1))
+plot1
+plot2 <- ggplot(data = df, aes(x = stat.shots, y = stat.goals, color = shootsCatches)) + 
+           geom_point() + scale_color_manual(values = c("#fdb462", "#80b1d3"), name = "Dominant Hand") +
+           labs(x = "Season Shots", y = "Season Goals", title = "Shots Taken vs. Goals Scored")
+plot3 <- ggplot(data = df, aes(x = position.name, y = stat.assists)) + 
+           geom_boxplot(color = "#225ea8") +
+           stat_summary(fun.y = mean, geom="line", group= 1, color= "#a6cee3", size = 1.5) +
+           labs(x = "Position Name", y = "Season Assists", title = "Season Assists by Position")
+plot4 <- ggplot(data = df, aes(x=hitsPerGame)) + 
+           geom_histogram(aes(y = ..density..), binwidth = 1/3, color = "black") +
+           labs(x = "Hits Per Game", y = "Density", title = "Distribution of Hits per Game") + 
+           stat_density(geom = "line", adjust = .55, lwd = 2, color = "#CC0000")
+grid.arrange(plot1, plot2, plot3, plot4, nrow = 2)
+```
+
+
+
+
+
+
+
+
 
 ```{r test}
 players <- fromJSON("https://statsapi.web.nhl.com/api/v1/roster/", flatten = TRUE)
