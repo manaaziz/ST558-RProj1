@@ -10,9 +10,6 @@ Mana Azizsoltani
   - [Quantitative Summaries](#quantitative-summaries)
   - [Plots](#plots)
 
-$ Rscript -e “rmarkdown::render(input =”ST558-RProj1.Rmd“, output\_file
-=”README.md“)”
-
 # Creating the Functions
 
 The first thing that I did was create three functions:
