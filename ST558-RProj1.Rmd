@@ -2,7 +2,7 @@
 title: "ST558 Project I"
 author: "Mana Azizsoltani"
 date: "9/4/2020"
-output: html_document
+output: rmarkdown::github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -21,24 +21,24 @@ library(RCurl)
 
 
 ```{r}
-cbind(data$franchiseId, data$franchiseName)
-# Write URL to access the API
-getRecords <- function(endpoint, id = NULL, team = NULL){
+# Write URL to access the NHL Records API
+getRecords <- function(endpoint, teamID = NULL, teamName = NULL){
   base <- "https://records.nhl.com/site/api"
   table <- endpoint
-  if (!is.null(team) & is.null(id)) {
+  if (!is.null(teamName) & is.null(teamID)) {
     full_url <- full_url <- paste0(base, "/", table)
-    data <- fromJSON(full_url, flatten = TRUE)$data %>% filter(franchiseName == team)
-  } else if(!is.null(id) & is.null(team)) {
-      full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", id)
+    data <- fromJSON(full_url, flatten = TRUE)$data %>% filter(franchiseName == teamName)
+  } else if(!is.null(teamID) & is.null(teamName)) {
+      full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", teamID)
       data <-fromJSON(full_url, flatten = TRUE)$data
-  } else if(is.null(id) & is.null(team)) {
+  } else if(is.null(teamID) & is.null(teamName)) {
       full_url <- paste0(base, "/", table)
       data <-fromJSON(full_url, flatten = TRUE)$data
     }
   return(data)
 }
 
+# write the function for the NHL Stats API
 getStats <- function(modifier=NULL){
   base <- "https://statsapi.web.nhl.com/api/v1/teams"
   if(!is.null(modifier)){
@@ -50,7 +50,64 @@ getStats <- function(modifier=NULL){
   return(data)
 }
 
+# Write the wrapper function
+pullData <- function(api = c("stats", "records"), endpoint = NULL, 
+                     teamName = NULL, teamID = NULL, modifier = NULL){
+  if(api == "stats"){
+    data <- getStats(modifier = modifier)
+    }
+  if(api == "records"){
+    data <- getRecords(endpoint = endpoint, teamID  = teamID, teamName = teamName)
+    }
+  return(data)
+}
 
+```
+
+```{r}
+# read in the roster of the VGK for the 2017/2018 season
+rosters <- pullData(api = "stats", modifier = "?expand=team.roster&season=20172018")
+VGKrost <- rosters[[30]][[31]]
+
+# Get the stats for each individual player.
+ppl <- VGKrost$person.id %>% as.vector(mode = "character")
+temp <- data.frame()
+df.ppl <- data.frame()
+for (i in 1:length(ppl)){
+  url <- paste0("https://statsapi.web.nhl.com/api/v1/people/", ppl[i],
+                "/stats?stats=statsSingleSeason&season=20172018")
+  temp <- fromJSON(url, flatten = TRUE)$stats$splits %>% as.data.frame()
+  temp$person.id <- as.numeric(ppl[i])
+  df.ppl <- bind_rows(df.ppl, temp)
+}
+
+# Get rid of goalie data in both data sets
+VGKrost <- VGKrost %>% filter(position.code != "G")
+df.ppl <- df.ppl %>% select(person.id, 1:29)
+
+# Join the data sets by person.id since it is unique
+df <- inner_join(VGKrost, df.ppl, by = "person.id")
+
+
+
+
+
+
+
+
+
+
+
+players <- fromJSON("https://statsapi.web.nhl.com/api/v1/roster/", flatten = TRUE)
+
+
+
+
+d <- pullData(api = "records", endpoint = "franchise-goalie-records", teamName = "Boston Bruins")
+
+d <- getStats("?expand=team.roster&season=20182019")
+d <- getStats("?expand=team.roster&season=20102011")
+d <- getStats("?stats=statsSingleSeason&season=20182019")
 ### TEST STUFF
 
 full_url <- "https://statsapi.web.nhl.com/api/v1/teams?expand=person.names"
@@ -85,5 +142,4 @@ table <- "franchise-season-records"
 full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", id)
 data <-fromJSON(full_url, flatten = TRUE)$data
 
-}
 ```
