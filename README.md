@@ -1,14 +1,29 @@
 ST558 Project I
 ================
 Mana Azizsoltani
-9/4/2020
+05 September, 2020
 
+  - [Required Packages](#required-packages)
   - [Creating the Functions](#creating-the-functions)
   - [Creating a Nice Data Set](#creating-a-nice-data-set)
   - [Data Manipulation](#data-manipulation)
   - [Contingency Tables](#contingency-tables)
   - [Quantitative Summaries](#quantitative-summaries)
   - [Plots](#plots)
+
+# Required Packages
+
+For this project, I needed to use a variety of really amazing R
+packages:
+
+  - `knitr`: for creating pretty tables using the `kable()` function.  
+  - `tidyverse`: for data manipulation, plot generation (via `ggplot2`),
+    and piping/chaining.  
+  - `gridExtra`: to stitch ggplots into a grid.  
+  - `rmarkdown`: to knit output files manually using the `render()`
+    function.  
+  - `jsonlite`: for pulling data from the various endpoints of the NHL
+    APIs.
 
 # Creating the Functions
 
@@ -70,16 +85,10 @@ pullData <- function(api = c("stats", "records"), endpoint = NULL,
 # Creating a Nice Data Set
 
 As a Las Vegas native, I really wanted to do something with Vegas Golden
-Knights (VGK). I chose to work with roster data from the 2017/2018
-season because that was their first season as a franchise. They took the
-whole NHL by storm and became conference champions. I don’t really know
-that much about hockey, but VGK brought the Las Vegas community together
-after the tragic October 1st shooting.
-
-All that being said, I pulled the 2017/2018 Vegas Golden Knights roster
+Knights (VGK), so I pulled the 2017/2018 Vegas Golden Knights roster
 from the `roster` endpoint. Then, since I knew exactly what I wanted in
-my data, I created two loop to pull two data sets about the players out
-of the `players` endpoint in the Stats API.
+my data, I created two loops to pull two data sets about the players out
+of the `players` endpoint in the NHL Stats API.
 
 ``` r
 # read in the roster of the VGK for the 2017/2018 season
