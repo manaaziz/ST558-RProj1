@@ -293,18 +293,33 @@ grid.arrange(plot1, plot2, plot3, plot4, nrow = 2)
 
 ![](README_files/figure-gfm/plotz-1.png)<!-- -->
 
-Then, I created my fifth and final plot to show the the distribution of
-the goals scored by dominant hand.
+Then, I created another plot to show the the distribution of the goals
+scored by dominant hand.
 
 ``` r
 plot5 <- ggplot(data = df, aes(x = stat.goals)) + 
-  geom_histogram(aes(y = ..density..), bins = 10) +
-  stat_density(geom = "line", adjust = 1, lwd = 2, color = "#CC0000") + facet_wrap(~domHand) +
-  labs(y = "Density", x = "Season Goals Scored", title = "Distribution of Goals Scored by Dominant Hand")
+           geom_histogram(aes(y = ..density..), bins = 10) +
+           stat_density(geom = "line", adjust = 1, lwd = 2, color = "#CC0000") + facet_wrap(~domHand) +
+           labs(y = "Density", x = "Season Goals Scored", 
+                title = "Distribution of Goals Scored by Dominant Hand")
 plot5
 ```
 
 ![](README_files/figure-gfm/plot5-1.png)<!-- -->
+
+Finally, I wanted to further investigate the relationship between season
+shots taken and goals scored. I created a scatter plot and overlaid a
+linear regression line.
+
+``` r
+plot6  <- ggplot(data = df, aes(x = stat.shots, y = stat.goals)) + 
+            geom_point(color = "#CC0000") + annotate(geom = "text", x = 50, y = 35, label = eq) +
+            geom_smooth(method='lm', formula = y ~ x + I(x^2), se= FALSE, lty = 2, color = "#4daf4a") +
+            labs(x = "Season Shots", y = "Season Goals", title = "Shots Taken vs. Goals Scored")
+plot6
+```
+
+![](README_files/figure-gfm/plot6-1.png)<!-- -->
 
 ``` r
 # players <- fromJSON("https://statsapi.web.nhl.com/api/v1/roster/", flatten = TRUE)
