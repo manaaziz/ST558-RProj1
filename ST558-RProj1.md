@@ -1,23 +1,9 @@
----
-title: "ST558 Project I"
-author: "Mana Azizsoltani"
-date: "9/4/2020"
-output: rmarkdown::github_document
----
+ST558 Project I
+================
+Mana Azizsoltani
+9/4/2020
 
-```{r setup, include=FALSE, message=FALSE, warning=FALSE}
-# Load necessary packages
-library(knitr)
-library(tidyverse)
-library(rmarkdown)
-library(RSQLite)
-library(httr)
-library(jsonlite)
-library(gridExtra)
-```
-
-
-```{r funcs}
+``` r
 # Write URL to access the NHL Records API
 getRecords <- function(endpoint, teamID = NULL, teamName = NULL){
   base <- "https://records.nhl.com/site/api"
@@ -58,10 +44,9 @@ pullData <- function(api = c("stats", "records"), endpoint = NULL,
     }
   return(data)
 }
-
 ```
 
-```{r VGKdata, message=FALSE}
+``` r
 # read in the roster of the VGK for the 2017/2018 season
 rosters <- pullData(api = "stats", modifier = "?expand=team.roster&season=20172018")
 VGKrost <- as.data.frame(rosters[[30]][[31]])
@@ -106,27 +91,75 @@ df <- df %>% mutate(goalsPerGame = stat.goals/stat.games,
                     assistsPerGame = stat.assists/stat.games,
                     shotsPerGame = stat.shots/stat.games,
                     hitsPerGame = stat.hits/stat.games) 
-
 ```
 
-```{r contTbl}
+``` r
 # Create contingency tables
 table(df$position.name) %>% kable(caption = "Number of players in each field position", 
                                   col.names = c("Position", "Frequency"))
+```
+
+| Position   | Frequency |
+| :--------- | --------: |
+| Center     |         8 |
+| Defenseman |        10 |
+| Left Wing  |         8 |
+| Right Wing |         4 |
+
+Number of players in each field position
+
+``` r
 table(df$nationality) %>% kable(caption = "Number of Players by Nationality",
                                 col.names = c("Nationality", "Frequency"))
+```
+
+| Nationality | Frequency |
+| :---------- | --------: |
+| CAN         |        16 |
+| CHE         |         1 |
+| CZE         |         2 |
+| FIN         |         1 |
+| FRA         |         1 |
+| RUS         |         1 |
+| SVK         |         1 |
+| SWE         |         2 |
+| USA         |         5 |
+
+Number of Players by Nationality
+
+``` r
 table(df$position.name, df$domHand) %>% kable(caption = "Player Position by Dominant Hand",
                                                     col.names = c("Left-Handed", "Right-Handed"))
 ```
 
-```{r quantsums, message=FALSE, warning=FALSE}
+|            | Left-Handed | Right-Handed |
+| :--------- | ----------: | -----------: |
+| Center     |           6 |            2 |
+| Defenseman |           7 |            3 |
+| Left Wing  |           7 |            1 |
+| Right Wing |           1 |            3 |
+
+Player Position by Dominant Hand
+
+``` r
 means1 <- df %>% group_by(position.name) %>% summarize(avgGoals = mean(stat.goals), 
                                                       avgAssists = mean(stat.assists),
                                                       avgShots = mean(stat.shots),
                                                       avgHits = mean(stat.hits))
 means1 %>% kable(caption = "Average Season Stats by Position",
                 col.names = c("Position", "Goals", "Assists", "Shots", "Hits"))
+```
 
+| Position   | Goals | Assists |  Shots |  Hits |
+| :--------- | ----: | ------: | -----: | ----: |
+| Center     |  12.5 |   14.50 |  94.75 | 42.25 |
+| Defenseman |   3.7 |   14.30 |  76.30 | 69.70 |
+| Left Wing  |  14.0 |   17.25 | 124.50 | 73.00 |
+| Right Wing |  10.5 |   17.00 |  97.50 | 95.25 |
+
+Average Season Stats by Position
+
+``` r
 means2 <- df %>% filter(nationality %in% c("CAN", "CHE", "USA", "SWE")) %>%
                  group_by(nationality) %>%
                  summarise(avgGoals = mean(stat.goals), 
@@ -135,20 +168,45 @@ means2 <- df %>% filter(nationality %in% c("CAN", "CHE", "USA", "SWE")) %>%
                            avgHits = mean(stat.hits))
 means2 %>% kable(caption = "Average Stats for Selected Players Nationalities",
                  col.names = c("Nationality", "Goals", "Assists", "Shots", "Hits"))
+```
 
+| Nationality |   Goals | Assists |  Shots |   Hits |
+| :---------- | ------: | ------: | -----: | -----: |
+| CAN         |  8.9375 |  18.375 | 104.25 | 82.375 |
+| CHE         |  2.0000 |  12.000 |  26.00 | 50.000 |
+| SWE         | 26.0000 |  18.500 | 132.50 | 60.000 |
+| USA         |  6.0000 |  12.400 |  79.40 | 51.800 |
+
+Average Stats for Selected Players Nationalities
+
+``` r
 means3 <- df %>% group_by(domHand) %>% summarise(avgGoals = round(mean(stat.goals), 3), 
                                                        sdAssists = round(sd(stat.goals), 3))
 means3 %>% kable(caption = "Average Goals (and SE) by Players Handedness",
                  col.names = c("Dominant Hand", "Mean", "Std. Dev."))
 ```
+
+| Dominant Hand |  Mean | Std. Dev. |
+| :------------ | ----: | --------: |
+| Left          | 9.714 |    11.490 |
+| Right         | 9.667 |     8.602 |
+
+Average Goals (and SE) by Players Handedness
+
 Here are the four required plots
-```{r plotz}
+
+``` r
 # Create the required plots
 plot1 <- ggplot(data = df, aes(x = position.name, fill = domHand)) + geom_bar(position = "dodge") +
            labs(x = "Position Name", y = "Count", title = "Field Positions by Dominant Hand") + 
            scale_fill_manual(values = c("#a8ddb5", "#43a2ca"), name = "Dominant Hand") + 
            theme(axis.text.x = element_text(angle = 45, hjust=1))
 plot1
+```
+
+![](ST558-RProj1_files/figure-gfm/plotz-1.png)<!-- -->
+
+``` r
 plot2 <- ggplot(data = df, aes(x = stat.shots, y = stat.goals, color = domHand)) + 
            geom_point() + scale_color_manual(values = c("#fdb462", "#80b1d3"), name = "Dominant Hand") +
            labs(x = "Season Shots", y = "Season Goals", title = "Shots Taken vs. Goals Scored")
@@ -162,20 +220,20 @@ plot4 <- ggplot(data = df, aes(x=hitsPerGame)) +
            stat_density(geom = "line", adjust = .55, lwd = 2, color = "#CC0000")
 grid.arrange(plot1, plot2, plot3, plot4, nrow = 2)
 ```
-One Last Plot
-```{r}
+
+![](ST558-RProj1_files/figure-gfm/plotz-2.png)<!-- --> One Last Plot
+
+``` r
 plot5 <- ggplot(data = df, aes(x = stat.goals)) + 
   geom_histogram(aes(y = ..density..), bins = 10) +
   stat_density(geom = "line", adjust = 1, lwd = 2, color = "#CC0000") + facet_wrap(~domHand) +
   labs(y = "Density", x = "Season Goals Scored", title = "Histograms for Goals Scored by Dominant Hand")
 plot5
-
-
 ```
 
+![](ST558-RProj1_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
 
-
-```{r test}
+``` r
 # players <- fromJSON("https://statsapi.web.nhl.com/api/v1/roster/", flatten = TRUE)
 # 
 # 
@@ -219,5 +277,4 @@ plot5
 # table <- "franchise-season-records"
 # full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", id)
 # data <-fromJSON(full_url, flatten = TRUE)$data
-
 ```
