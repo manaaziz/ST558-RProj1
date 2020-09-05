@@ -2,11 +2,13 @@
 title: "ST558 Project I"
 author: "Mana Azizsoltani"
 date: "9/4/2020"
-output: 
+output:
   github_document:
     toc: true
     toc_depth: 1
 ---
+
+$ Rscript -e "rmarkdown::render(input = "ST558-RProj1.Rmd", output_file = "README.md")" 
 
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 # Load necessary packages
@@ -17,6 +19,8 @@ library(RSQLite)
 library(httr)
 library(jsonlite)
 library(gridExtra)
+
+
 ```
 
 # Creating the Functions  
@@ -107,7 +111,7 @@ for (i in 1:length(ppl)){
 # Data Manipulation  
 To get the data to the form that I wanted, I first had to use an inner join to match-merge the data sets by player ID. The only problem was that there were a bunch of redundant columns or just columns that I knew I didn't need, so I went ahead and removed them. After that, I went ahead and created some new variables.  
 
-```{r manip}
+```{r manip, message=FALSE}
 # Join the three data sets
 df.ppl <- df.ppl %>% rename(person.id = id)
 dfd <- inner_join(VGKrost, df.ppl, by = "person.id")
@@ -250,5 +254,4 @@ plot5
 # table <- "franchise-season-records"
 # full_url <- paste0(base, "/", table, "?cayenneExp=franchiseId=", id)
 # data <-fromJSON(full_url, flatten = TRUE)$data
-
 ```
