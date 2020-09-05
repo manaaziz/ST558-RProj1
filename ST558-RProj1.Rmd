@@ -8,8 +8,6 @@ output:
     toc_depth: 1
 ---
 
-$ Rscript -e "rmarkdown::render(input = "ST558-RProj1.Rmd", output_file = "README.md")" 
-
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 # Load necessary packages
 library(knitr)
