@@ -8,13 +8,20 @@ output:
     toc_depth: 1
 ---
 
+# Required Packages
+For this project, I needed to use a variety of really amazing R packages:
+
+  * `knitr`: for creating pretty tables using the `kable()` function.  
+  * `tidyverse`: for data manipulation, plot generation (via `ggplot2`), and piping/chaining.  
+  * `gridExtra`: to stitch ggplots into a grid.  
+  * `rmarkdown`: to knit output files manually using the `render()` function.  
+  * `jsonlite`: for pulling data from the various endpoints of the NHL APIs.  
+
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 # Load necessary packages
 library(knitr)
 library(tidyverse)
 library(rmarkdown)
-library(RSQLite)
-library(httr)
 library(jsonlite)
 library(gridExtra)
 ```

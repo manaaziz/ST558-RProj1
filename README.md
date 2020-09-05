@@ -295,7 +295,7 @@ plot5 <- ggplot(data = df, aes(x = stat.goals)) +
 plot5
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+![](README_files/figure-gfm/plot5-1.png)<!-- -->
 
 ``` r
 # players <- fromJSON("https://statsapi.web.nhl.com/api/v1/roster/", flatten = TRUE)
