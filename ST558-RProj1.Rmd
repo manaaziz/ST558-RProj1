@@ -99,7 +99,9 @@ df <- df %>% select(-ends_with("link"), -starts_with("primary"), -ends_with("Tim
                     -starts_with("birth"), -rosterStatus, -currentTeam.name, 
                     -currentTeam.id, -season, -ends_with("TimeOnIcePerGame"))
 
-# Add new variables
+
+# Create new variables
+df <- df %>% transmute(domHand = ifelse(shootsCatches=="L", "Left", "Right"))
 df <- df %>% mutate(goalsPerGame = stat.goals/stat.games, 
                     assistsPerGame = stat.assists/stat.games,
                     shotsPerGame = stat.shots/stat.games,
@@ -113,7 +115,7 @@ table(df$position.name) %>% kable(caption = "Number of players in each field pos
                                   col.names = c("Position", "Frequency"))
 table(df$nationality) %>% kable(caption = "Number of Players by Nationality",
                                 col.names = c("Nationality", "Frequency"))
-table(df$position.name, df$shootsCatches) %>% kable(caption = "Player Position by Dominant Hand",
+table(df$position.name, df$domHand) %>% kable(caption = "Player Position by Dominant Hand",
                                                     col.names = c("Left-Handed", "Right-Handed"))
 ```
 
@@ -134,20 +136,20 @@ means2 <- df %>% filter(nationality %in% c("CAN", "CHE", "USA", "SWE")) %>%
 means2 %>% kable(caption = "Average Stats for Selected Players Nationalities",
                  col.names = c("Nationality", "Goals", "Assists", "Shots", "Hits"))
 
-means3 <- df %>% group_by(shootsCatches) %>% summarise(avgGoals = round(mean(stat.goals), 3), 
+means3 <- df %>% group_by(domHand) %>% summarise(avgGoals = round(mean(stat.goals), 3), 
                                                        sdAssists = round(sd(stat.goals), 3))
 means3 %>% kable(caption = "Average Goals (and SE) by Players Handedness",
                  col.names = c("Dominant Hand", "Mean", "Std. Dev."))
 ```
-
+Here are the four required plots
 ```{r plotz}
 # Create the required plots
-plot1 <- ggplot(data = df, aes(x = position.name, fill = shootsCatches)) + geom_bar(position = "dodge") +
+plot1 <- ggplot(data = df, aes(x = position.name, fill = domHand)) + geom_bar(position = "dodge") +
            labs(x = "Position Name", y = "Count", title = "Field Positions by Dominant Hand") + 
            scale_fill_manual(values = c("#a8ddb5", "#43a2ca"), name = "Dominant Hand") + 
            theme(axis.text.x = element_text(angle = 45, hjust=1))
 plot1
-plot2 <- ggplot(data = df, aes(x = stat.shots, y = stat.goals, color = shootsCatches)) + 
+plot2 <- ggplot(data = df, aes(x = stat.shots, y = stat.goals, color = domHand)) + 
            geom_point() + scale_color_manual(values = c("#fdb462", "#80b1d3"), name = "Dominant Hand") +
            labs(x = "Season Shots", y = "Season Goals", title = "Shots Taken vs. Goals Scored")
 plot3 <- ggplot(data = df, aes(x = position.name, y = stat.assists)) + 
@@ -160,12 +162,16 @@ plot4 <- ggplot(data = df, aes(x=hitsPerGame)) +
            stat_density(geom = "line", adjust = .55, lwd = 2, color = "#CC0000")
 grid.arrange(plot1, plot2, plot3, plot4, nrow = 2)
 ```
+One Last Plot
+```{r}
+plot5 <- ggplot(data = df, aes(x = stat.goals)) + 
+  geom_histogram(aes(y = ..density..), bins = 10) +
+  stat_density(geom = "line", adjust = 1, lwd = 2, color = "#CC0000") + facet_wrap(~domHand) +
+  labs(y = "Density", x = "Season Goals Scored", title = "Histograms for Goals Scored by Dominant Hand")
+plot5
 
 
-
-
-
-
+```
 
 
 
