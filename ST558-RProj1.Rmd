@@ -20,7 +20,7 @@ library(RCurl)
 ```
 
 
-```{r}
+```{r funcs}
 # Write URL to access the NHL Records API
 getRecords <- function(endpoint, teamID = NULL, teamName = NULL){
   base <- "https://records.nhl.com/site/api"
@@ -64,29 +64,53 @@ pullData <- function(api = c("stats", "records"), endpoint = NULL,
 
 ```
 
-```{r}
+```{r VGKdata}
 # read in the roster of the VGK for the 2017/2018 season
 rosters <- pullData(api = "stats", modifier = "?expand=team.roster&season=20172018")
-VGKrost <- rosters[[30]][[31]]
+VGKrost <- as.data.frame(rosters[[30]][[31]])
+VGKrost <- VGKrost %>% filter(position.code != "G") %>% select(-person.link)
 
 # Get the stats for each individual player.
 ppl <- VGKrost$person.id %>% as.vector(mode = "character")
 temp <- data.frame()
-df.ppl <- data.frame()
+df.stats <- data.frame()
 for (i in 1:length(ppl)){
   url <- paste0("https://statsapi.web.nhl.com/api/v1/people/", ppl[i],
                 "/stats?stats=statsSingleSeason&season=20172018")
   temp <- fromJSON(url, flatten = TRUE)$stats$splits %>% as.data.frame()
   temp$person.id <- as.numeric(ppl[i])
+  df.stats <- bind_rows(df.stats, temp)
+}
+
+ppl <- VGKrost$person.id %>% as.vector(mode = "character")
+temp <- data.frame()
+df.ppl <- data.frame()
+for (i in 1:length(ppl)){
+  url <- paste0("https://statsapi.web.nhl.com/api/v1/people/", ppl[i])
+  temp <- fromJSON(url, flatten = TRUE)$people %>% as.data.frame()
   df.ppl <- bind_rows(df.ppl, temp)
 }
 
-# Get rid of goalie data in both data sets
-VGKrost <- VGKrost %>% filter(position.code != "G")
-df.ppl <- df.ppl %>% select(person.id, 1:29)
+# Join the three data sets
+df.ppl <- df.ppl %>% rename(person.id = id)
+dfd <- inner_join(VGKrost, df.ppl, by = "person.id")
+df <- inner_join(dfd, df.stats)
 
-# Join the data sets by person.id since it is unique
-df <- inner_join(VGKrost, df.ppl, by = "person.id")
+# Get rid of redundant rows
+df <- df %>% select(-ends_with("link"), -starts_with("primary"), -ends_with("TimeOnIce"))
+
+# Add new variables
+df <- df %>% mutate(goalsPerGame = stat.goals/stat.games, 
+                    assistsPerGame = stat.assists/stat.games,
+                    shotsPerGame = stat.shots/stat.games,
+                    hitsPerGame = stat.hits/stat.games)
+```
+
+```{r contTbl}
+# Create contingency tables
+table(df$position.name) %>% kable(caption= "Number of players in each field position", 
+                                  col.names = c("Position", "Frequency"))
+table(df$)
 
 
 
@@ -97,7 +121,9 @@ df <- inner_join(VGKrost, df.ppl, by = "person.id")
 
 
 
+```
 
+```{r test}
 players <- fromJSON("https://statsapi.web.nhl.com/api/v1/roster/", flatten = TRUE)
 
 
