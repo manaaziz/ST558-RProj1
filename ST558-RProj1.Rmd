@@ -17,8 +17,6 @@ library(RSQLite)
 library(httr)
 library(jsonlite)
 library(gridExtra)
-
-
 ```
 
 # Creating the Functions  
@@ -198,7 +196,7 @@ grid.arrange(plot1, plot2, plot3, plot4, nrow = 2)
 
 Then, I created my fifth and final plot to show the the distribution of the goals scored by dominant hand.  
 
-```{r}
+```{r plot5}
 plot5 <- ggplot(data = df, aes(x = stat.goals)) + 
   geom_histogram(aes(y = ..density..), bins = 10) +
   stat_density(geom = "line", adjust = 1, lwd = 2, color = "#CC0000") + facet_wrap(~domHand) +
