@@ -1,7 +1,7 @@
 ST558 Project I
 ================
 Mana Azizsoltani
-07 September, 2020
+11 September, 2020
 
   - [Required Packages](#required-packages)
   - [Creating the Functions](#creating-the-functions)
@@ -57,22 +57,36 @@ getRecords <- function(endpoint, teamID = NULL, teamName = NULL){
   return(data)
 }
 
+
 # Write the function for the NHL Stats API
 getStats <- function(modifier, teamID = NULL, season=NULL){
   base <- "https://statsapi.web.nhl.com/api/v1/teams"
   if(!is.null(modifier)){
-    if (modifier == "statsSingleSeasonPlayoffs"){
+    if (modifier == "team.roster"){
+      full_url <- paste0(base, "/", teamID, "?expand=", modifier)
+      data <- fromJSON(full_url, flatten = TRUE)$teams[[30]][[1]]
+    } else if(modifier == "team.schedule.next" | modifier == "team.schedule.previous"){
+      full_url <- paste0(base, "/", teamID, "?expand=", modifier)
+      data <- fromJSON(full_url, flatten = TRUE)$teams[[34]][[1]]
+    } else if (modifier == "team.stats"){
+      full_url <- paste0(base, "/", teamID, "?expand=", modifier)
+      data <- fromJSON(full_url, flatten = TRUE)$teams[[8]][[1]]
+      data <- data[[1]][[1]]
+    } else if (modifier == "statsSingleSeasonPlayoffs"){
       full_url <- paste0(base, "/", teamID, "?stats=", modifier)
+      data <- fromJSON(full_url, flatten = TRUE)$teams
     } else if (!is.null(season)){
       full_url <- paste0(base, "/", teamID, "?expand=", modifier, "&season=", season)
+      data <- fromJSON(full_url, flatten = TRUE)$teams
     } else {
         full_url <- paste0(base, "/", teamID, "?expand=", modifier)
+        data <- fromJSON(full_url, flatten = TRUE)$teams
       }
   }
   if (is.null(modifier)){
     full_url <- base
+    data <- fromJSON(full_url, flatten = TRUE)$teams
   }
-  data <- fromJSON(full_url, flatten = TRUE)$teams
   return(data)
 }
 
@@ -101,7 +115,7 @@ of the `players` endpoint in the NHL Stats API.
 ``` r
 # read in the roster of the VGK for the 2017/2018 season
 rosters <- pullData(api = "stats", modifier = "team.roster", teamID = 54, season = 20172018)
-VGKrost <- as.data.frame(rosters[[30]][[1]])
+VGKrost <- as.data.frame(rosters)
 VGKrost <- VGKrost %>% filter(position.code != "G") %>% select(-person.link)
 
 # Get the stats for each individual player.
@@ -111,7 +125,7 @@ df.stats <- data.frame()
 for (i in 1:length(ppl)){
   url <- paste0("https://statsapi.web.nhl.com/api/v1/people/", ppl[i],
                 "/stats?stats=statsSingleSeason&season=20172018")
-  temp <- fromJSON(url, flatten = TRUE)$stats$splits %>% as.data.frame()
+  temp <- fromJSON(url, flatten = TRUE)$stats$splits[[1]]
   temp$person.id <- as.numeric(ppl[i])
   df.stats <- bind_rows(df.stats, temp)
 }
@@ -145,7 +159,8 @@ df <- inner_join(dfd, df.stats)
 df <- df %>% select(-ends_with("link"), -starts_with("primary"), -ends_with("TimeOnIce"), 
                     -position.code, -person.fullName, -firstName, -lastName, -active,
                     -starts_with("birth"), -rosterStatus, -currentTeam.name, 
-                    -currentTeam.id, -season, -ends_with("TimeOnIcePerGame"))
+                    -currentTeam.id, -season, -ends_with("TimeOnIcePerGame")) %>%
+             filter(!is.na(stat.games))
 
 
 # Create new variables
@@ -170,9 +185,9 @@ table(df$position.name) %>% kable(caption = "Number of players in each field pos
 
 | Position   | Frequency |
 | :--------- | --------: |
-| Center     |         8 |
-| Defenseman |        10 |
-| Left Wing  |         8 |
+| Center     |         7 |
+| Defenseman |         8 |
+| Left Wing  |         3 |
 | Right Wing |         4 |
 
 Number of players in each field position
@@ -184,15 +199,10 @@ table(df$nationality) %>% kable(caption = "Number of Players by Nationality",
 
 | Nationality | Frequency |
 | :---------- | --------: |
-| CAN         |        16 |
-| CHE         |         1 |
-| CZE         |         2 |
-| FIN         |         1 |
-| FRA         |         1 |
-| RUS         |         1 |
-| SVK         |         1 |
-| SWE         |         2 |
-| USA         |         5 |
+| CAN         |        14 |
+| CZE         |         1 |
+| SWE         |         1 |
+| USA         |         6 |
 
 Number of Players by Nationality
 
@@ -203,9 +213,9 @@ table(df$position.name, df$domHand) %>% kable(caption = "Player Position by Domi
 
 |            | Left-Handed | Right-Handed |
 | :--------- | ----------: | -----------: |
-| Center     |           6 |            2 |
-| Defenseman |           7 |            3 |
-| Left Wing  |           7 |            1 |
+| Center     |           5 |            2 |
+| Defenseman |           6 |            2 |
+| Left Wing  |           3 |            0 |
 | Right Wing |           1 |            3 |
 
 Player Position by Dominant Hand
@@ -220,20 +230,20 @@ a significant difference.
 
 ``` r
 # Make the first contingency table: average measurements by position
-means1 <- df %>% group_by(position.name) %>% summarize(avgGoals = mean(stat.goals), 
-                                                      avgAssists = mean(stat.assists),
-                                                      avgShots = mean(stat.shots),
-                                                      avgHits = mean(stat.hits))
+means1 <- df %>% group_by(position.name) %>% summarize(avgGoals = mean(stat.goals, na.rm = TRUE), 
+                                                       avgAssists = mean(stat.assists, na.rm = TRUE),
+                                                       avgShots = mean(stat.shots, na.rm = TRUE),
+                                                       avgHits = mean(stat.hits, na.rm = TRUE))
 means1 %>% kable(caption = "Average Season Stats by Position",
-                col.names = c("Position", "Goals", "Assists", "Shots", "Hits"))
+                 col.names = c("Position", "Goals", "Assists", "Shots", "Hits"))
 ```
 
-| Position   | Goals | Assists |  Shots |  Hits |
-| :--------- | ----: | ------: | -----: | ----: |
-| Center     |  12.5 |   14.50 |  94.75 | 42.25 |
-| Defenseman |   3.7 |   14.30 |  76.30 | 69.70 |
-| Left Wing  |  14.0 |   17.25 | 124.50 | 73.00 |
-| Right Wing |  10.5 |   17.00 |  97.50 | 95.25 |
+| Position   |     Goals |  Assists |    Shots |      Hits |
+| :--------- | --------: | -------: | -------: | --------: |
+| Center     | 15.285714 | 19.85714 | 111.1429 |  48.14286 |
+| Defenseman |  4.375000 | 14.12500 |  83.0000 |  86.50000 |
+| Left Wing  |  8.333333 | 10.00000 | 118.6667 |  94.66667 |
+| Right Wing | 15.250000 | 27.00000 | 126.7500 | 107.00000 |
 
 Average Season Stats by Position
 
@@ -241,35 +251,34 @@ Average Season Stats by Position
 # Make the second contingency table: average measurements by nationality
 means2 <- df %>% filter(nationality %in% c("CAN", "CHE", "USA", "SWE")) %>%
                  group_by(nationality) %>%
-                 summarise(avgGoals = mean(stat.goals), 
-                           avgAssists = mean(stat.assists),
-                           avgShots = mean(stat.shots),
-                           avgHits = mean(stat.hits))
+                 summarise(avgGoals = mean(stat.goals, na.rm = TRUE), 
+                           avgAssists = mean(stat.assists, na.rm = TRUE),
+                           avgShots = mean(stat.shots, na.rm = TRUE),
+                           avgHits = mean(stat.hits, na.rm = TRUE))
 means2 %>% kable(caption = "Average Stats for Selected Players Nationalities",
                  col.names = c("Nationality", "Goals", "Assists", "Shots", "Hits"))
 ```
 
-| Nationality |   Goals | Assists |  Shots |   Hits |
-| :---------- | ------: | ------: | -----: | -----: |
-| CAN         |  8.9375 |  18.375 | 104.25 | 82.375 |
-| CHE         |  2.0000 |  12.000 |  26.00 | 50.000 |
-| SWE         | 26.0000 |  18.500 | 132.50 | 60.000 |
-| USA         |  6.0000 |  12.400 |  79.40 | 51.800 |
+| Nationality |     Goals |  Assists |     Shots |     Hits |
+| :---------- | --------: | -------: | --------: | -------: |
+| CAN         |  8.214286 | 15.64286 |  88.78571 | 86.00000 |
+| SWE         | 43.000000 | 35.00000 | 184.00000 | 48.00000 |
+| USA         | 10.500000 | 21.33333 | 131.00000 | 72.66667 |
 
 Average Stats for Selected Players Nationalities
 
 ``` r
 # Make the third contingency table: mean & sd by dominant hand
-means3 <- df %>% group_by(domHand) %>% summarise(avgGoals = round(mean(stat.goals), 3), 
-                                                       sdGoals = round(sd(stat.goals), 3))
+means3 <- df %>% group_by(domHand) %>% summarise(avgGoals = round(mean(stat.goals, na.rm = TRUE), 3), 
+                                                 sdGoals = round(sd(stat.goals, na.rm = TRUE), 3))
 means3 %>% kable(caption = "Average Goals (and SE) by Players Handedness",
                  col.names = c("Dominant Hand", "Mean", "Std. Dev."))
 ```
 
-| Dominant Hand |  Mean | Std. Dev. |
-| :------------ | ----: | --------: |
-| Left          | 9.714 |    11.490 |
-| Right         | 9.667 |     8.602 |
+| Dominant Hand |   Mean | Std. Dev. |
+| :------------ | -----: | --------: |
+| Left          | 10.467 |    10.882 |
+| Right         | 10.143 |    10.605 |
 
 Average Goals (and SE) by Players Handedness
 
