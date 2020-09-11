@@ -66,9 +66,6 @@ getStats <- function(modifier, teamID = NULL, season=NULL){
       full_url <- paste0(base, "/", teamID, "?expand=", modifier)
       data <- fromJSON(full_url, flatten = TRUE)$teams[[8]][[1]]
       data <- data[[1]][[1]]
-    } else if (modifier == "team.roster"){
-      full_url <- paste0(base, "/", teamID, "?expand=", modifier)
-      data <- fromJSON(full_url, flatten = TRUE)$teams[[8]][[1]]
     } else if (modifier == "statsSingleSeasonPlayoffs"){
       full_url <- paste0(base, "/", teamID, "?stats=", modifier)
       data <- fromJSON(full_url, flatten = TRUE)$teams
@@ -108,7 +105,7 @@ As a Las Vegas native, I really wanted to do something with Vegas Golden Knights
 ```{r getData, message=FALSE}
 # read in the roster of the VGK for the 2017/2018 season
 rosters <- pullData(api = "stats", modifier = "team.roster", teamID = 54, season = 20172018)
-VGKrost <- as.data.frame(rosters[[30]][[1]])
+VGKrost <- as.data.frame(rosters)
 VGKrost <- VGKrost %>% filter(position.code != "G") %>% select(-person.link)
 
 # Get the stats for each individual player.
@@ -118,7 +115,7 @@ df.stats <- data.frame()
 for (i in 1:length(ppl)){
   url <- paste0("https://statsapi.web.nhl.com/api/v1/people/", ppl[i],
                 "/stats?stats=statsSingleSeason&season=20172018")
-  temp <- fromJSON(url, flatten = TRUE)$stats$splits %>% as.data.frame()
+  temp <- fromJSON(url, flatten = TRUE)$stats$splits[[1]]
   temp$person.id <- as.numeric(ppl[i])
   df.stats <- bind_rows(df.stats, temp)
 }
@@ -147,7 +144,8 @@ df <- inner_join(dfd, df.stats)
 df <- df %>% select(-ends_with("link"), -starts_with("primary"), -ends_with("TimeOnIce"), 
                     -position.code, -person.fullName, -firstName, -lastName, -active,
                     -starts_with("birth"), -rosterStatus, -currentTeam.name, 
-                    -currentTeam.id, -season, -ends_with("TimeOnIcePerGame"))
+                    -currentTeam.id, -season, -ends_with("TimeOnIcePerGame")) %>%
+             filter(!is.na(stat.games))
 
 
 # Create new variables
@@ -177,26 +175,26 @@ I then created some tables for the mean goals, assists, shots, and hits for the 
 
 ```{r quantsums, message=FALSE, warning=FALSE}
 # Make the first contingency table: average measurements by position
-means1 <- df %>% group_by(position.name) %>% summarize(avgGoals = mean(stat.goals), 
-                                                      avgAssists = mean(stat.assists),
-                                                      avgShots = mean(stat.shots),
-                                                      avgHits = mean(stat.hits))
+means1 <- df %>% group_by(position.name) %>% summarize(avgGoals = mean(stat.goals, na.rm = TRUE), 
+                                                       avgAssists = mean(stat.assists, na.rm = TRUE),
+                                                       avgShots = mean(stat.shots, na.rm = TRUE),
+                                                       avgHits = mean(stat.hits, na.rm = TRUE))
 means1 %>% kable(caption = "Average Season Stats by Position",
-                col.names = c("Position", "Goals", "Assists", "Shots", "Hits"))
+                 col.names = c("Position", "Goals", "Assists", "Shots", "Hits"))
 
 # Make the second contingency table: average measurements by nationality
 means2 <- df %>% filter(nationality %in% c("CAN", "CHE", "USA", "SWE")) %>%
                  group_by(nationality) %>%
-                 summarise(avgGoals = mean(stat.goals), 
-                           avgAssists = mean(stat.assists),
-                           avgShots = mean(stat.shots),
-                           avgHits = mean(stat.hits))
+                 summarise(avgGoals = mean(stat.goals, na.rm = TRUE), 
+                           avgAssists = mean(stat.assists, na.rm = TRUE),
+                           avgShots = mean(stat.shots, na.rm = TRUE),
+                           avgHits = mean(stat.hits, na.rm = TRUE))
 means2 %>% kable(caption = "Average Stats for Selected Players Nationalities",
                  col.names = c("Nationality", "Goals", "Assists", "Shots", "Hits"))
 
 # Make the third contingency table: mean & sd by dominant hand
-means3 <- df %>% group_by(domHand) %>% summarise(avgGoals = round(mean(stat.goals), 3), 
-                                                       sdGoals = round(sd(stat.goals), 3))
+means3 <- df %>% group_by(domHand) %>% summarise(avgGoals = round(mean(stat.goals, na.rm = TRUE), 3), 
+                                                 sdGoals = round(sd(stat.goals, na.rm = TRUE), 3))
 means3 %>% kable(caption = "Average Goals (and SE) by Players Handedness",
                  col.names = c("Dominant Hand", "Mean", "Std. Dev."))
 ```
@@ -204,7 +202,7 @@ means3 %>% kable(caption = "Average Goals (and SE) by Players Handedness",
 # Plots
 I stitched the four required plots (boxplot, histogram, scatterplot, and barplot) together in a grid. They help visualize different characteristics of the data.  
 
-```{r plotz}
+```{r plotz, warning=FALSE}
 # Create the required plots
 plot1 <- ggplot(data = df, aes(x = position.name, fill = domHand)) + geom_bar(position = "dodge") +
            labs(x = "Position Name", y = "Count", title = "Field Positions by Dominant Hand") + 
@@ -226,7 +224,7 @@ grid.arrange(plot1, plot2, plot3, plot4, nrow = 2)
 
 Then, I created another plot to show the the distribution of the goals scored by dominant hand.  
 
-```{r plot5}
+```{r plot5, warning=FALSE}
 plot5 <- ggplot(data = df, aes(x = stat.goals)) + 
            geom_histogram(aes(y = ..density..), bins = 10) +
            stat_density(geom = "line", adjust = 1, lwd = 2, color = "#CC0000") + facet_wrap(~domHand) +
@@ -236,16 +234,15 @@ plot5
 ```
 
 ```{r lmeq, include=FALSE}
-lm1 <- lm(stat.goals ~ stat.shots + I(stat.shots^2), data = df)
+lm1 <- lm(stat.goals ~ stat.shots, data = df)
 c <- format(unname(coef(lm1)[1]), digits = 2) %>% substring(2)
 b <- format(unname(coef(lm1)[2]), digits = 2)
-a <- format(unname(coef(lm1)[3]), digits = 2)
-eq <- paste0("y = ", a, "x^2 + ", b, "x - ", c)
+eq <- paste0("y = ", b, "x - ", c)
 ```
 
 Finally, I wanted to further investigate the relationship between season shots taken and goals scored. I created a scatter plot and overlaid a linear regression line.  
 
-```{r plot6}
+```{r plot6, warning=FALSE}
 plot6  <- ggplot(data = df, aes(x = stat.shots, y = stat.goals)) + 
             geom_point(color = "#CC0000") + annotate(geom = "text", x = 50, y = 35, label = eq) +
             geom_smooth(method='lm', formula = y ~ x + I(x^2), se= FALSE, lty = 2, color = "#4daf4a") +
